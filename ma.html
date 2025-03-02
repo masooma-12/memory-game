@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Game</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: white;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            flex-direction: column;
+            touch-action: manipulation;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 1024px;
+            height: 100vh;
+            max-height: 768px;
+            position: relative;
+            background-color: white;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+
+        .screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 10vh;
+            transition: opacity 0.5s;
+        }
+
+        h1 {
+            color: #B03060; /* MAROON */
+            font-size: 8vmin;
+            margin-bottom: 4vh;
+            text-align: center;
+            padding: 0 10px;
+        }
+
+        .button {
+            width: 80%;
+            max-width: 250px;
+            height: 8vh;
+            max-height: 60px;
+            margin: 1.5vh;
+            background-color: #FFB6C1; /* PINK */
+            color: #B03060; /* MAROON */
+            border: 3px solid #B03060;
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 5vmin;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            user-select: none;
+        }
+
+        .button:hover, .button:active {
+            background-color: #E7548C; /* DARK_PINK */
+        }
+
+        #game-screen {
+            padding-top: 0;
+        }
+
+        #info-panel {
+            width: 100%;
+            height: 10vh;
+            max-height: 80px;
+            background-color: #FFB6C1; /* PINK */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10px;
+            box-sizing: border-box;
+            border-bottom: 3px solid #B03060; /* MAROON */
+        }
+
+        .info-text {
+            color: #B03060; /* MAROON */
+            font-size: 3.5vmin;
+            white-space: nowrap;
+        }
+
+        #game-board {
+            display: grid;
+            gap: 1.5vmin;
+            padding: 2vmin;
+            box-sizing: border-box;
+            width: 100%;
+            height: calc(100% - 10vh);
+            justify-content: center;
+            align-content: center;
+        }
+
+        .card {
+            perspective: 1000px;
+            cursor: pointer;
+            border-radius: 10px;
+            touch-action: manipulation;
+        }
+
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.5s;
+        }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid #B03060; /* MAROON */
+            box-sizing: border-box;
+        }
+
+        .card-front {
+            background-color: white;
+            transform: rotateY(180deg);
+            font-size: 6vmin;
+        }
+
+        .matched .card-front {
+            background-color: #F0F0F0; /* LIGHT_GRAY */
+        }
+
+        .card-back {
+            background-color: #FFDAE0; /* CARD_BACK */
+            position: relative;
+        }
+
+        .card-back::after {
+            content: '';
+            position: absolute;
+            width: calc(100% - 10px);
+            height: calc(100% - 10px);
+            border: 2px solid #FFB6C1;
+            border-radius: 5px;
+        }
+
+        .flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        #gameover-screen {
+            text-align: center;
+        }
+
+        #gameover-screen h2 {
+            font-size: 5vmin;
+            margin: 2vh 0;
+            color: #B03060;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Responsive adjustments for info panel on very small screens */
+        @media (max-width: 350px) {
+            #info-panel {
+                flex-direction: column;
+                height: auto;
+                padding: 5px;
+                min-height: 60px;
+            }
+            
+            .info-text {
+                margin: 2px 0;
+                font-size: 3.2vmin;
+            }
+            
+            #game-board {
+                height: calc(100% - 60px);
+            }
+        }
+
+        /* Special adjustments for very small screens */
+        @media (max-width: 320px) {
+            h1 {
+                font-size: 7vmin;
+                margin-bottom: 2vh;
+            }
+            
+            .button {
+                font-size: 4.5vmin;
+                height: 7vh;
+                margin: 1vh;
+            }
+            
+            .card-front {
+                font-size: 5vmin;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <!-- Menu Screen -->
+        <div id="menu-screen" class="screen">
+            <h1>Memory Game</h1>
+            <div class="button" id="play-button">Play Game</div>
+            <div class="button" id="exit-button">Exit</div>
+        </div>
+
+        <!-- Difficulty Screen -->
+        <div id="difficulty-screen" class="screen hidden">
+            <h1>Select Difficulty</h1>
+            <div class="button difficulty-button" data-difficulty="easy">Easy</div>
+            <div class="button difficulty-button" data-difficulty="medium">Medium</div>
+            <div class="button difficulty-button" data-difficulty="hard">Hard</div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="screen hidden">
+            <div id="info-panel">
+                <div class="info-text" id="time-display">Time: 120s</div>
+                <div class="info-text" id="moves-display">Moves: 0/30</div>
+                <div class="info-text" id="streak-display">Streak: 0</div>
+            </div>
+            <div id="game-board"></div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameover-screen" class="screen hidden">
+            <h1>Game Over</h1>
+            <h2 id="score-display">Score: 0</h2>
+            <h2 id="moves-result">Moves: 0/30</h2>
+            <h2 id="time-result">Time: 0s</h2>
+            <div class="button" id="menu-button">Menu</div>
+        </div>
+    </div>
+
+    <script>
+        // Game states
+        const GameState = {
+            MENU: 'menu',
+            DIFFICULTY: 'difficulty',
+            GAME: 'game',
+            GAME_OVER: 'gameover'
+        };
+
+        // Emoji symbols for cards
+        const symbols = [
+            '🎮', '🎲', '🎯', '🎪', '🎭', '🎨', '🎩', '🎬',
+            '🌟', '🌙', '⭐', '☀️', '🌈', '⚡', '❄️', '🔥',
+            '🎵', '🎸', '🎺', '🎻', '🥁', '🎹', '🎷', '🎼',
+            '🐶', '🐱', '🐰', '🦊', '🐼', '🐨', '🦁', '🐯'
+        ];
+
+        class MemoryGame {
+            constructor() {
+                this.state = GameState.MENU;
+                this.winningStreak = 0;
+                this.score = 0;
+                this.moves = 0;
+                this.maxMoves = 0;
+                this.startTime = null;
+                this.elapsedTime = 0;
+                this.timeLimit = 0;
+                this.difficulty = '';
+                this.cards = [];
+                this.flippedCards = [];
+                this.matchedPairs = 0;
+                this.canFlip = true;
+                this.timerInterval = null;
+                this.highScores = this.loadHighScores();
+                this.isMobile = this.detectMobileDevice();
+                this.isSmallScreen = window.innerWidth < 360;
+
+                // DOM elements
+                this.screens = {
+                    menu: document.getElementById('menu-screen'),
+                    difficulty: document.getElementById('difficulty-screen'),
+                    game: document.getElementById('game-screen'),
+                    gameOver: document.getElementById('gameover-screen')
+                };
+
+                this.gameBoard = document.getElementById('game-board');
+                this.timeDisplay = document.getElementById('time-display');
+                this.movesDisplay = document.getElementById('moves-display');
+                this.streakDisplay = document.getElementById('streak-display');
+
+                // Handle resize
+                window.addEventListener('resize', () => {
+                    this.isMobile = this.detectMobileDevice();
+                    this.isSmallScreen = window.innerWidth < 360;
+                    if (this.state === GameState.GAME) {
+                        this.adjustGameBoard();
+                    }
+                });
+
+                this.setupEventListeners();
+            }
+
+            detectMobileDevice() {
+                return window.innerWidth <= 768 || 
+                       navigator.userAgent.match(/Android/i) || 
+                       navigator.userAgent.match(/iPhone|iPad|iPod/i);
+            }
+
+            loadHighScores() {
+                let highScores = localStorage.getItem('memoryGameHighScores');
+                if (highScores) {
+                    return JSON.parse(highScores);
+                } else {
+                    return {easy: [], medium: [], hard: []};
+                }
+            }
+
+            saveHighScores() {
+                localStorage.setItem('memoryGameHighScores', JSON.stringify(this.highScores));
+            }
+
+            setupEventListeners() {
+                // Menu buttons
+                document.getElementById('play-button').addEventListener('click', () => {
+                    this.changeState(GameState.DIFFICULTY);
+                });
+
+                document.getElementById('exit-button').addEventListener('click', () => {
+                    if (confirm('Are you sure you want to exit the game?')) {
+                        window.close();
+                    }
+                });
+
+                // Difficulty buttons
+                document.querySelectorAll('.difficulty-button').forEach(button => {
+                    button.addEventListener('click', () => {
+                        this.createBoard(button.dataset.difficulty);
+                        this.changeState(GameState.GAME);
+                    });
+                });
+
+                // Return to menu button
+                document.getElementById('menu-button').addEventListener('click', () => {
+                    this.changeState(GameState.MENU);
+                });
+
+                // Prevent double-tap zoom on mobile
+                document.addEventListener('touchend', (e) => {
+                    if (this.state === GameState.GAME) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+            }
+
+            changeState(newState) {
+                // Hide all screens
+                Object.values(this.screens).forEach(screen => {
+                    screen.classList.add('hidden');
+                });
+
+                // Show the requested screen
+                switch (newState) {
+                    case GameState.MENU:
+                        this.screens.menu.classList.remove('hidden');
+                        break;
+                    case GameState.DIFFICULTY:
+                        this.screens.difficulty.classList.remove('hidden');
+                        break;
+                    case GameState.GAME:
+                        this.screens.game.classList.remove('hidden');
+                        break;
+                    case GameState.GAME_OVER:
+                        this.screens.gameOver.classList.remove('hidden');
+                        this.displayGameOverStats();
+                        break;
+                }
+
+                this.state = newState;
+            }
+
+            createBoard(difficulty) {
+                this.difficulty = difficulty;
+                let rows, cols;
+
+                // Set difficulty parameters (adjusted for mobile)
+                if (this.isMobile) {
+                    if (this.isSmallScreen) {
+                        // Even smaller screens get more compact grids
+                        if (difficulty === 'easy') {
+                            rows = 4; cols = 3;
+                            this.timeLimit = 140;
+                            this.maxMoves = 35;
+                        } else if (difficulty === 'medium') {
+                            rows = 4; cols = 4;
+                            this.timeLimit = 200;
+                            this.maxMoves = 55;
+                        } else { // hard
+                            rows = 5; cols = 4;
+                            this.timeLimit = 260;
+                            this.maxMoves = 75;
+                        }
+                    } else {
+                        // Regular mobile screens
+                        if (difficulty === 'easy') {
+                            rows = 4; cols = 3;
+                            this.timeLimit = 140;
+                            this.maxMoves = 35;
+                        } else if (difficulty === 'medium') {
+                            rows = 5; cols = 4;
+                            this.timeLimit = 200;
+                            this.maxMoves = 55;
+                        } else { // hard
+                            rows = 6; cols = 4;
+                            this.timeLimit = 260;
+                            this.maxMoves = 75;
+                        }
+                    }
+                } else {
+                    // Desktop/tablet layout
+                    if (difficulty === 'easy') {
+                        rows = cols = 4;
+                        this.timeLimit = 120;
+                        this.maxMoves = 30;
+                    } else if (difficulty === 'medium') {
+                        rows = cols = 6;
+                        this.timeLimit = 180;
+                        this.maxMoves = 50;
+                    } else { // hard
+                        rows = cols = 8;
+                        this.timeLimit = 240;
+                        this.maxMoves = 70;
+                    }
+                }
+
+                // Ensure we have an even number of cards
+                if ((rows * cols) % 2 !== 0) {
+                    cols++; // Adjust to make sure we have pairs
+                }
+
+                // Reset game state
+                this.gameBoard.innerHTML = '';
+                this.moves = 0;
+                this.matchedPairs = 0;
+                this.flippedCards = [];
+                this.canFlip = true;
+                this.cards = [];
+                
+                // Update displays
+                this.timeDisplay.textContent = `Time: ${this.timeLimit}s`;
+                this.movesDisplay.textContent = `Moves: ${this.moves}/${this.maxMoves}`;
+                this.streakDisplay.textContent = `Streak: ${this.winningStreak}`;
+
+                // Setup the grid
+                this.gameBoard.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+                this.gameBoard.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+                
+                // Create cards
+                const pairsNeeded = (rows * cols) / 2;
+                const selectedSymbols = this.getRandomSymbols(pairsNeeded);
+                
+                // Create the cards
+                for (let i = 0; i < rows * cols; i++) {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    
+                    const cardInner = document.createElement('div');
+                    cardInner.className = 'card-inner';
+                    
+                    const cardFront = document.createElement('div');
+                    cardFront.className = 'card-front';
+                    cardFront.textContent = selectedSymbols[i];
+                    
+                    const cardBack = document.createElement('div');
+                    cardBack.className = 'card-back';
+                    
+                    cardInner.appendChild(cardFront);
+                    cardInner.appendChild(cardBack);
+                    card.appendChild(cardInner);
+                    
+                    // Add card to board
+                    this.gameBoard.appendChild(card);
+                    
+                    // Store card data
+                    this.cards.push({
+                        element: card,
+                        symbol: selectedSymbols[i],
+                        isFlipped: false,
+                        isMatched: false
+                    });
+                    
+                    // Add event listeners for both mouse and touch
+                    card.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.flipCard(i);
+                    });
+                    
+                    card.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        this.flipCard(i);
+                    }, { passive: false });
+                }
+                
+                // Start the game timer
+                this.startTime = Date.now();
+                this.elapsedTime = 0;
+                this.startTimer();
+                
+                // Adjust the game board layout
+                this.adjustGameBoard();
+            }
+            
+            adjustGameBoard() {
+                // This function optimizes the game board layout
+                const gameBoardRect = this.gameBoard.getBoundingClientRect();
+                const availableHeight = gameBoardRect.height;
+                
+                // Get number of rows from the grid
+                const gridStyle = window.getComputedStyle(this.gameBoard);
+                const rows = gridStyle.gridTemplateRows.split(' ').length;
+                
+                // Calculate optimal gap based on available height
+                let gap;
+                if (this.isSmallScreen) {
+                    gap = Math.max(5, Math.min(10, availableHeight * 0.01)); // Very small gap for small screens
+                } else if (this.isMobile) {
+                    gap = Math.max(5, Math.min(10, availableHeight * 0.015)); // Small gap for mobile
+                } else {
+                    gap = Math.max(8, Math.min(15, availableHeight * 0.02)); // Larger gap for desktop
+                }
+                
+                // Apply the calculated gap
+                this.gameBoard.style.gap = `${gap}px`;
+                
+                // Adjust padding based on screen size
+                if (this.isSmallScreen) {
+                    this.gameBoard.style.padding = '5px';
+                } else if (this.isMobile) {
+                    this.gameBoard.style.padding = '8px';
+                } else {
+                    this.gameBoard.style.padding = '15px';
+                }
+                
+                // For smaller screens, make card inner elements more compact
+                if (this.isMobile) {
+                    this.cards.forEach(card => {
+                        const cardFront = card.element.querySelector('.card-front');
+                        if (this.isSmallScreen) {
+                            cardFront.style.fontSize = '4vmin'; // Smaller emoji for tiny screens
+                        } else {
+                            cardFront.style.fontSize = '5vmin'; // Smaller emoji for mobile
+                        }
+                    });
+                }
+            }
+            
+            getRandomSymbols(pairs) {
+                // Randomly select and duplicate symbols
+                const shuffledSymbols = [...symbols].sort(() => 0.5 - Math.random());
+                const selectedSymbols = shuffledSymbols.slice(0, pairs);
+                // Duplicate and shuffle
+                return [...selectedSymbols, ...selectedSymbols].sort(() => 0.5 - Math.random());
+            }
+            
+            flipCard(index) {
+                const card = this.cards[index];
+                
+                // Only allow flipping if: 
+                // - We can flip cards
+                // - Card is not already flipped or matched
+                // - We haven't flipped 2 cards already
+                if (!this.canFlip || card.isFlipped || card.isMatched || this.flippedCards.length >= 2) {
+                    return;
+                }
+                
+                // Flip the card
+                card.isFlipped = true;
+                card.element.classList.add('flipped');
+                this.flippedCards.push(index);
+                
+                // Check if we've flipped two cards
+                if (this.flippedCards.length === 2) {
+                    this.moves++;
+                    this.movesDisplay.textContent = `Moves: ${this.moves}/${this.maxMoves}`;
+                    this.canFlip = false;
+                    
+                    // Check for a match after animation completes
+                    setTimeout(() => this.checkForMatch(), 600);
+                }
+            }
+            
+            checkForMatch() {
+                const card1 = this.cards[this.flippedCards[0]];
+                const card2 = this.cards[this.flippedCards[1]];
+                
+                if (card1.symbol === card2.symbol) {
+                    // We have a match
+                    card1.isMatched = true;
+                    card2.isMatched = true;
+                    card1.element.classList.add('matched');
+                    card2.element.classList.add('matched');
+                    this.matchedPairs++;
+                    
+                    // Check if the game is complete
+                    if (this.matchedPairs === this.cards.length / 2) {
+                        this.handleGameOver(true);
+                    }
+                } else {
+                    // No match, flip cards back
+                    setTimeout(() => {
+                        card1.isFlipped = false;
+                        card2.isFlipped = false;
+                        card1.element.classList.remove('flipped');
+                        card2.element.classList.remove('flipped');
+                    }, 500);
+                }
+                
+                // Reset for next turn
+                this.flippedCards = [];
+                this.canFlip = true;
+            }
+            
+            startTimer() {
+                // Clear any existing timer
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                }
+                
+                // Start a new timer
+                this.timerInterval = setInterval(() => {
+                    this.elapsedTime = Math.floor((Date.now() - this.startTime) / 1000);
+                    const timeLeft = Math.max(0, this.timeLimit - this.elapsedTime);
+                    this.timeDisplay.textContent = `Time: ${timeLeft}s`;
+                    
+                    // Check if time ran out or moves exceeded
+                    if (timeLeft <= 0 || this.moves >= this.maxMoves) {
+                        this.handleGameOver(false);
+                    }
+                }, 1000);
+            }
+            
+            stopTimer() {
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                    this.timerInterval = null;
+                }
+            }
+            
+            calculateScore() {
+                const baseScore = (this.cards.length / 2) * 100;
+                const movePenalty = this.moves * 10;
+                const timePenalty = this.elapsedTime * 2;
+                return Math.max(0, baseScore - movePenalty - timePenalty);
+            }
+            
+            handleGameOver(won) {
+                this.stopTimer();
+                
+                if (won) {
+                    this.winningStreak++;
+                    this.score = this.calculateScore();
+                    // Save high score
+                    this.highScores[this.difficulty].push({
+                        score: this.score,
+                        moves: this.moves,
+                        time: this.elapsedTime
+                    });
+                    this.saveHighScores();
+                } else {
+                    this.winningStreak = 0;
+                    this.score = 0;
+                }
+                
+                this.changeState(GameState.GAME_OVER);
+            }
+            
+            displayGameOverStats() {
+                document.getElementById('score-display').textContent = `Score: ${this.score}`;
+                document.getElementById('moves-result').textContent = `Moves: ${this.moves}/${this.maxMoves}`;
+                document.getElementById('time-result').textContent = `Time: ${this.elapsedTime}s`;
+            }
+        }
+
+        // Start the game when the page loads
+        window.addEventListener('load', () => {
+            // Force reflow on iOS devices by temporarily changing body height
+            if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+                document.body.style.height = '100vh';
+                setTimeout(() => {
+                    document.body.style.height = '';
+                }, 10);
+            }
+            
+            const game = new MemoryGame();
+        });
+    </script>
+</body>
+</html>
